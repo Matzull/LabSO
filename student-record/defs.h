@@ -2,7 +2,7 @@
 #define DEFS_H
 
 #define MAX_CHARS_NIF 9
-#define MAX_STUDENT_ENTRY_SIZE 128
+#define MAX_STUDENT_ENTRY_SIZE 64
 #define MAX_INFILE_LEN 256
 
 typedef struct {

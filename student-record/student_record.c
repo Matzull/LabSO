@@ -13,16 +13,16 @@ static inline char* clone_string(char* original)
 	return copy;
 }
 
-student_t* parse_records(char* records_[], int* nr_records)
+student_t* parse_records(char* records_[], int nr_records)
 {
-    char* token; 
     student_t* students;
-    int entrynum;
-    entrynum = sizeof records_ / sizeof records_[0];
 
-    students = malloc(sizeof(records_t) * entrynum);
+    char* token; 
     
-    for (int i = 0; i < entrynum; ++i)
+
+    students = malloc(sizeof(records_t) * nr_records);
+    
+    for (int i = 0; i < nr_records; ++i)
     {
         token_id_t token_id=STUDENT_ID;
         while((token = strsep(&records_[i], ":"))!=NULL) {
@@ -50,11 +50,10 @@ student_t* parse_records(char* records_[], int* nr_records)
                 default:
                     break;
             }
-            
+            token_id++;
         }
-        token_id++;
+        
     }
-    *nr_records = entrynum; 
     return students;
 }
 
@@ -90,77 +89,95 @@ void dump_entries(records_t records, FILE* students)
     char studentT[MAX_STUDENT_ENTRY_SIZE];
     for (size_t i = 0; i < records.records_len; i++)
     {
-        studentToChar(records.records[i], studentT);
-        fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
+        // studentToChar(records.records[i], studentT);
+        // fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
     }
 }
 
-char** loadstr(FILE* students)
+char** loadstr(FILE* students, int* nr_entry)
 {
     char line[MAX_STUDENT_ENTRY_SIZE];//lenght
     int line_count = 0;
     char** entries;
-    /*Check length*/
-    while (fgets(line, MAX_STUDENT_ENTRY_SIZE, students) != NULL){
-		line_count++;
-	}
-    /*Reset pointer*/
-    fseek(students, -(line_count+1) * MAX_STUDENT_ENTRY_SIZE,SEEK_CUR);
+    // /*Check length*/
+    // int i = 0;
+    // while (i < 2 && fgets(line, MAX_STUDENT_ENTRY_SIZE, students) != NULL){
+	// 	line_count++;
+    //     i++;
+	// }
+
+    // *nr_entry = line_count;
+    *nr_entry = 2;
+    // /*Reset pointer*/
+    // fseek(students, 0, SEEK_SET);
 
     /*Reserve memory*/
-    entries = malloc(MAX_STUDENT_ENTRY_SIZE * (line_count + 1));
+    entries = malloc(sizeof(char*) * (2 + 1));
 
-    memset(entries,0,MAX_STUDENT_ENTRY_SIZE * (line_count + 1));
+    memset(entries,0,sizeof(char*) * (line_count + 1));
 
     /*Load to entries array*/
-
-    int bytesR = 0;
-    for (size_t i = 0; i < line_count; i++)
-    {
-        bytesR = fgets(line, MAX_STUDENT_ENTRY_SIZE, students);
-        strcpy(entries[i], line);
+    int j = 0;
+    while (j < 2 && fgets(line, MAX_STUDENT_ENTRY_SIZE, students) != NULL){
+        entries[j] = clone_string(line);
+        j++;
     }
     return entries;
 }
 
-records_t read_student_file(FILE* students)
+records_t read_student_file(FILE* students, options_t options)
 {
     records_t ret;
-    int length;
-
-    /*Load the 4 first bytes as the header*/
-    char num[10];
-    fgets(num, 10, students);
-    sscanf(num, "%d", &ret.records_len);
-
-    /*Load the rest of the file*/
-    ret.records = parse_records(loadstr(students), &length);
-
-    if (length != ret.records_len)
+    
+    if (options.action != CREATE_MODE)
     {
-        fprintf(stderr, "Wrong entry size");
+        /*Load the 4 first bytes as the header*/
+        char num[10];
+        fgets(num, 10, students);
+        sscanf(num, "%d", &ret.records_len);
     }
+    int nr_read_Entries;
+    char** records = loadstr(students, &nr_read_Entries);
+    if (options.action != CREATE_MODE && nr_read_Entries != ret.records_len)
+    {
+        fprintf(stderr, "Error: wrong entry size in file.\n");
+        exit(0);
+    }
+    else if(options.action == CREATE_MODE)
+    {
+       ret.records_len = nr_read_Entries;
+    }
+    
+    /*Load the rest of the file*/
+    ret.records = parse_records(records, ret.records_len);
     
     return ret;
 }
 
-void listStudents(FILE* outfile, options_t options)
+void listStudents(FILE* outFile, options_t options)
 {
     records_t records;
-    records = read_student_file(options.inFile);
+    records = read_student_file(options.inFile, options);
     for (int i = 0; i < records.records_len; i++)
     {
-        printf("[Entry # %d]\n", i);
-        printf("\tstudent_id=%d\n\tNIF=%s\n\tfirst_name=%s\n\tlast_name=%s\n",
+        fprintf(outFile, "[Entry # %d]\n", i);
+        fprintf(outFile, "\tstudent_id=%d\n\tNIF=%s\n\tfirst_name=%s\n\tlast_name=%s\n",
         records.records[i].student_id, records.records[i].NIF, records.records[i].first_name, records.records[i].last_name);
     }
 }
 
+void createStudents(options_t options)
+{
+    records_t records;
+    records = read_student_file(stdin, options);
+    dump_entries(records, options.inFile);
+}
+
 void openFile(char* mode, options_t *options)
 {
-    if ((options->inFile=fopen(options->inFilec, "r"))==NULL) 
+    if ((options->inFile=fopen(options->inFilec, mode))==NULL) 
     {
-        fprintf(stderr, "The output file %s could not be opened: ", optarg);
+        fprintf(stderr, "The file %s could not be opened: ", optarg);
         perror(NULL);
         exit(EXIT_FAILURE);
 	}
@@ -181,7 +198,7 @@ int main(int argc, char* argv[])
     }
 
     /* Parse command-line options */
-	while((opt = getopt(argc, argv, "f:hlc:a:q:")) != -1 && !rec) {
+	while((opt = getopt(argc, argv, "f:hlca:q:")) != -1 && !rec) {
 		switch(opt) {
         case 'f':
             strcpy(options.inFilec, optarg);
@@ -198,6 +215,8 @@ int main(int argc, char* argv[])
 		case 'c':
 			options.action=CREATE_MODE;
             rec = true;
+            openFile("w", &options);
+            createStudents(options);
             //records.records = parse_records(records_, records.records_len);
 
             free_entries(records.records, records.records_len);
