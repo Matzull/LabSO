@@ -91,6 +91,7 @@ void dump_entries(records_t records, FILE* students)
     {
         // studentToChar(records.records[i], studentT);
         // fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
+        fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
     }
 }
 
