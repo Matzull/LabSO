@@ -18,7 +18,6 @@ student_t* parse_records(char* records_[], int nr_records)
     student_t* students;
 
     char* token; 
-    
 
     students = malloc(sizeof(records_t) * nr_records);
     
@@ -79,18 +78,22 @@ void studentToChar(student_t student, char* student_serialized)
 
     /*Append student to a char* */
     strcat(student_serialized, student_id_c);
+    strcat(student_serialized, ":");
     strcat(student_serialized, student.NIF);
+    strcat(student_serialized, ":");
     strcat(student_serialized, student.first_name);
-    strcat(student_serialized, student.first_name);
+    strcat(student_serialized, ":");
+    strcat(student_serialized, student.last_name);
 }
 
 void dump_entries(records_t records, FILE* students)
 {
-    char studentT[MAX_STUDENT_ENTRY_SIZE];
     for (size_t i = 0; i < records.records_len; i++)
     {
-        // studentToChar(records.records[i], studentT);
+        char studentT[MAX_STUDENT_ENTRY_SIZE];
+        studentToChar(records.records[i], studentT);
         // fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
+        fprintf(students, "%s\n", studentT);
         fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
     }
 }
@@ -218,8 +221,7 @@ int main(int argc, char* argv[])
             rec = true;
             openFile("w", &options);
             createStudents(options);
-            //records.records = parse_records(records_, records.records_len);
-
+            fclose(options.inFile);
             free_entries(records.records, records.records_len);
 			break;
 		case 'a':
