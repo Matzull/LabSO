@@ -39,7 +39,7 @@ student_t* parse_records(char* records_[], int nr_records)
                     break;
 
                 case NAME:
-                   students[i].first_name = clone_string(token);
+                    students[i].first_name = clone_string(token);
                     break;
 
                 case SURNAME:
@@ -59,12 +59,9 @@ student_t* parse_records(char* records_[], int nr_records)
 static void free_entries(student_t* entries, int nr_records)
 {
 	int i=0;
-	student_t* entry;
 	for (i=0; i<nr_records; i++) {
-		entry=&entries[i]; /* Point to current entry */
-		free(entry->NIF);
-		free(entry->first_name);
-		free(entry->last_name);
+		free(entries[i].first_name);
+		free(entries[i].last_name);
 	}
 	free(entries);
 }
@@ -77,7 +74,7 @@ void studentToChar(student_t student, char* student_serialized)
     sprintf(student_id_c, "%d", student.student_id);
 
     /*Append student to a char* */
-    strcat(student_serialized, student_id_c);
+    strcpy(student_serialized, student_id_c);
     strcat(student_serialized, ":");
     strcat(student_serialized, student.NIF);
     strcat(student_serialized, ":");
@@ -93,8 +90,8 @@ void dump_entries(records_t records, FILE* students)
         char studentT[MAX_STUDENT_ENTRY_SIZE];
         studentToChar(records.records[i], studentT);
         // fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
-        fprintf(students, "%s\n", studentT);
-        fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
+        fprintf(students, "%s", studentT);
+        //fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
     }
 }
 
@@ -103,29 +100,17 @@ char** loadstr(FILE* students, int* nr_entry)
     char line[MAX_STUDENT_ENTRY_SIZE];//lenght
     int line_count = 0;
     char** entries;
-    // /*Check length*/
-    // int i = 0;
-    // while (i < 2 && fgets(line, MAX_STUDENT_ENTRY_SIZE, students) != NULL){
-	// 	line_count++;
-    //     i++;
-	// }
+    entries = malloc(sizeof(char*));
+    /*Check length*/
+    int i = 0;
+    while (i < 2 && fgets(line, MAX_STUDENT_ENTRY_SIZE, students) != NULL){
+		line_count++;
+        entries[i] = clone_string(line);
+        i++;
+        entries = realloc(entries, sizeof(char*) +  sizeof(char*) * i);
+	}
 
-    // *nr_entry = line_count;
-    *nr_entry = 2;
-    // /*Reset pointer*/
-    // fseek(students, 0, SEEK_SET);
-
-    /*Reserve memory*/
-    entries = malloc(sizeof(char*) * (2 + 1));
-
-    memset(entries,0,sizeof(char*) * (line_count + 1));
-
-    /*Load to entries array*/
-    int j = 0;
-    while (j < 2 && fgets(line, MAX_STUDENT_ENTRY_SIZE, students) != NULL){
-        entries[j] = clone_string(line);
-        j++;
-    }
+    *nr_entry = line_count;
     return entries;
 }
 
@@ -154,6 +139,11 @@ records_t read_student_file(FILE* students, options_t options)
     
     /*Load the rest of the file*/
     ret.records = parse_records(records, ret.records_len);
+    for (size_t i = 0; i < nr_read_Entries; i++)
+    {
+        free(records[i]);
+    }
+    free(records);
     
     return ret;
 }
@@ -175,6 +165,16 @@ void createStudents(options_t options)
     records_t records;
     records = read_student_file(stdin, options);
     dump_entries(records, options.inFile);
+    free_entries(records.records, records.records_len);
+}
+
+void appendStudents(options_t options)
+{
+    records_t records;
+    records = read_student_file(options.inFile, options);
+    records_t records_a;
+    records = read_student_file(stdin, options);
+    free_entries(records_a.records, records_a.records_len);
 }
 
 void openFile(char* mode, options_t *options)
@@ -222,14 +222,13 @@ int main(int argc, char* argv[])
             openFile("w", &options);
             createStudents(options);
             fclose(options.inFile);
-            free_entries(records.records, records.records_len);
 			break;
 		case 'a':
 			options.action=APPEND_MODE;
             rec = true;
-            //records.records = parse_records(records_, records.records_len);
-
-            free_entries(records.records, records.records_len);
+            openFile("r+", &options);
+            appendStudents(options);
+            fclose(options.inFile);
 			break;
 		case 'q':
 			options.action=QUERY_MODE;

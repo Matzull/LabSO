@@ -1,0 +1,1 @@
+Linea 109, como hag para saber cuando parar de leer inputs
