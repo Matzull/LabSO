@@ -1,1 +1,2 @@
 Linea 109, como hag para saber cuando parar de leer inputs
+Linea 208, el realloc rompe el programa

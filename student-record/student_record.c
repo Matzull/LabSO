@@ -13,6 +13,20 @@ static inline char* clone_string(char* original)
 	return copy;
 }
 
+bool streq(char* str1, char* str2, size_t size)
+{
+    bool ret = true;
+    for (size_t i = 0; i < size; i++)
+    {
+       if (str1[i] != str2[i])
+       {
+            ret = false;
+            break;
+       }
+    }
+    return ret;
+}
+
 student_t* parse_records(char* records_[], int nr_records)
 {
     student_t* students;
@@ -118,7 +132,7 @@ records_t read_student_file(FILE* students, options_t options)
 {
     records_t ret;
     
-    if (options.action != CREATE_MODE)
+    if (students != stdin)
     {
         /*Load the 4 first bytes as the header*/
         char num[10];
@@ -127,12 +141,12 @@ records_t read_student_file(FILE* students, options_t options)
     }
     int nr_read_Entries;
     char** records = loadstr(students, &nr_read_Entries);
-    if (options.action != CREATE_MODE && nr_read_Entries != ret.records_len)
+    if (students != stdin && nr_read_Entries != ret.records_len)
     {
         fprintf(stderr, "Error: wrong entry size in file.\n");
         exit(0);
     }
-    else if(options.action == CREATE_MODE)
+    else if(students == stdin)
     {
        ret.records_len = nr_read_Entries;
     }
@@ -168,12 +182,57 @@ void createStudents(options_t options)
     free_entries(records.records, records.records_len);
 }
 
+void recordMerger(records_t records,  records_t records_a)
+{
+    /*check for duplicates*/ 
+
+    for (size_t i = 0; i < records.records_len; i++)
+    {
+        for (size_t j = 0; j < records_a.records_len; j++)
+        {
+            if (streq(records.records[i].NIF, records_a.records[i].NIF, 10))
+            {
+                fprintf(stderr, "Found duplicate student with NIF: %s ", records.records[i].NIF);
+                perror(NULL);
+                exit(EXIT_FAILURE);
+            }
+            if (records.records[i].student_id == records_a.records[i].student_id)
+            {
+                fprintf(stderr, "Found duplicate student with id: %d ", records.records[i].student_id);
+                perror(NULL);
+                exit(EXIT_FAILURE);
+            }
+        } 
+    }
+
+    records.records = realloc(records.records, sizeof(records_t) * (records.records_len + records_a.records_len));
+    
+    for (size_t i = records.records_len; i < records.records_len + records_a.records_len; i++)
+    {
+        records.records[i].student_id = records_a.records[i].student_id;
+        for (size_t i = 0; i < 10; i++)
+        {
+            records.records[i].NIF[i] = records_a.records[i].NIF[i];
+        }
+        records.records[i].first_name = records_a.records[i].first_name;
+        records.records[i].last_name = records_a.records[i].last_name;
+    }
+    records.records_len += records_a.records_len;    
+}
+
 void appendStudents(options_t options)
 {
+    /*Load students to memory from existing file*/
     records_t records;
     records = read_student_file(options.inFile, options);
+    /*Load students to memory from user input*/
     records_t records_a;
-    records = read_student_file(stdin, options);
+    records_a = read_student_file(stdin, options);
+    /*Check for duplicates and merge the two student sets*/
+    recordMerger(records, records_a);
+    /*Write back to file*/
+    dump_entries(records, options.inFile);
+    /*Free memory*/
     free_entries(records_a.records, records_a.records_len);
 }
 
@@ -182,7 +241,6 @@ void openFile(char* mode, options_t *options)
     if ((options->inFile=fopen(options->inFilec, mode))==NULL) 
     {
         fprintf(stderr, "The file %s could not be opened: ", optarg);
-        perror(NULL);
         exit(EXIT_FAILURE);
 	}
 }
@@ -202,7 +260,7 @@ int main(int argc, char* argv[])
     }
 
     /* Parse command-line options */
-	while((opt = getopt(argc, argv, "f:hlca:q:")) != -1 && !rec) {
+	while((opt = getopt(argc, argv, "f:hlcaq:")) != -1 && !rec) {
 		switch(opt) {
         case 'f':
             strcpy(options.inFilec, optarg);
