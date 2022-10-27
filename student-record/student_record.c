@@ -5,7 +5,7 @@
 #include <string.h>
 #include "defs.h"
 
-static inline char* clone_string(char* original)
+char* clone_string(char* original)
 {
 	char* copy;
 	copy=malloc(strlen(original)+1);
@@ -217,7 +217,49 @@ void recordMerger(records_t records,  records_t records_a)
         records.records[i].first_name = records_a.records[i].first_name;
         records.records[i].last_name = records_a.records[i].last_name;
     }
-    records.records_len += records_a.records_len;    
+    records.records_len += records_a.records_len;  
+
+    //Free the memory used by records_a  
+}
+
+void queryStudent(options_t options, char* ID)
+{
+    bool found = false;
+    /*Load students to memory from existing file*/
+    records_t records;
+    char ID_c[10];
+    records = read_student_file(options.inFile, options);
+    for (size_t i = 0; i < records.records_len && !found; i++)
+    {
+       
+        if (options.qMode == q_ID)
+        {
+            sprintf(ID_c, "%d", records.records[i].student_id);
+            if (streq( ID_c, ID, strlen(ID)))
+            {
+                found = true;
+                //Print the user with the specified student_id
+                fprintf(stdout, "\tstudent_id=%d\n\tNIF=%s\n\tfirst_name=%s\n\tlast_name=%s\n",
+                records.records[i].student_id, records.records[i].NIF, records.records[i].first_name, records.records[i].last_name);
+            }            
+        }
+        else
+        {
+            if (streq(records.records[i].NIF, ID, strlen(ID)))
+            {
+                found = true;
+                fprintf(stdout, "\tstudent_id=%d\n\tNIF=%s\n\tfirst_name=%s\n\tlast_name=%s\n",
+                records.records[i].student_id, records.records[i].NIF, records.records[i].first_name, records.records[i].last_name);
+                //Print the user with the specified NIF
+            }  
+        }       
+    }
+    if (!found)
+    {
+        fprintf(stdout, "User not found\n");
+    }
+    
+    free_entries(records.records, records.records_len);
 }
 
 void appendStudents(options_t options)
@@ -290,7 +332,34 @@ int main(int argc, char* argv[])
 			break;
 		case 'q':
 			options.action=QUERY_MODE;
-            //Check type of query mode
+            bool sopt = false;
+            rec = true;
+            if ((opt = getopt(argc, argv, "i:n:")) != -1)
+            {
+                switch (opt)
+                {
+                case 'i':
+                    options.qMode = q_ID;
+                    sopt = true;
+                    queryStudent(options, optarg);
+                    break;
+                
+                case 'n':
+                    options.qMode = q_NIF;
+                    sopt = true;
+                    queryStudent(options, optarg);
+                    break;
+
+                default:
+                    if (!sopt)
+                    {
+                        fprintf(stderr, "Query mode not specified");
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
+                }
+            }
+            
             rec = true;
 			break;
 		default:
