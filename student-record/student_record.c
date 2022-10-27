@@ -65,7 +65,8 @@ student_t* parse_records(char* records_[], int nr_records)
             }
             token_id++;
         }
-        
+        /*Delete the /n of each entry*/
+        students[i].last_name[strlen(students[i].last_name) - 1] = 0x00;
     }
     return students;
 }
@@ -99,13 +100,12 @@ void studentToChar(student_t student, char* student_serialized)
 
 void dump_entries(records_t records, FILE* students)
 {
+    fprintf(students, "%d", records.records_len);
     for (size_t i = 0; i < records.records_len; i++)
     {
         char studentT[MAX_STUDENT_ENTRY_SIZE];
         studentToChar(records.records[i], studentT);
-        // fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
-        fprintf(students, "%s", studentT);
-        //fwrite(studentT, MAX_STUDENT_ENTRY_SIZE, 1, students);
+        fprintf(students, "\n%s", studentT);
     }
 }
 
@@ -117,10 +117,26 @@ char** loadstr(FILE* students, int* nr_entry)
     entries = malloc(sizeof(char*));
     /*Check length*/
     int i = 0;
-    while (i < 2 && fgets(line, MAX_STUDENT_ENTRY_SIZE, students) != NULL){
+    int b = 0;
+    if (students == stdin)
+    {
+        printf("Please input number of entries to load: ");
+        scanf("%d", &b);
+        getchar();
+    }
+    else
+    {
+        b = 10;
+    }
+        
+    while ((i < b) && fgets(line, MAX_STUDENT_ENTRY_SIZE, students) != NULL){
 		line_count++;
         entries[i] = clone_string(line);
-        i++;
+        if (students != stdin)
+        {
+            b++;
+        }
+        i++;     
         entries = realloc(entries, sizeof(char*) +  sizeof(char*) * i);
 	}
 
@@ -153,6 +169,8 @@ records_t read_student_file(FILE* students, options_t options)
     
     /*Load the rest of the file*/
     ret.records = parse_records(records, ret.records_len);
+
+    /*Free the records string array*/
     for (size_t i = 0; i < nr_read_Entries; i++)
     {
         free(records[i]);
@@ -182,44 +200,55 @@ void createStudents(options_t options)
     free_entries(records.records, records.records_len);
 }
 
-void recordMerger(records_t records,  records_t records_a)
+void cpyStudentArray(size_t entries, student_t* src, student_t* dst, int start)
+{
+    for (size_t i = 0; i < entries; i++)//start position is copied
+    {
+        dst[i + start].student_id = src[i].student_id;
+        strcpy(dst[i + start].NIF, src[i].NIF);
+        dst[i + start].first_name = src[i].first_name;
+        dst[i + start].last_name = src[i].last_name;
+    }
+}
+
+student_t* realloc_s(student_t* src, size_t dst_bytes, size_t src_bytes)
+{
+    student_t* dst = malloc(dst_bytes);
+    cpyStudentArray(src_bytes / sizeof(student_t), src, dst, 0);    
+    //free_entries(src, src_bytes / sizeof(student_t));
+    return dst;
+}
+
+void recordMerger(records_t* records,  records_t records_a)
 {
     /*check for duplicates*/ 
 
-    for (size_t i = 0; i < records.records_len; i++)
+    for (size_t i = 0; i < records->records_len; i++)
     {
         for (size_t j = 0; j < records_a.records_len; j++)
         {
-            if (streq(records.records[i].NIF, records_a.records[i].NIF, 10))
+            if (streq(records->records[i].NIF, records_a.records[i].NIF, 10))
             {
-                fprintf(stderr, "Found duplicate student with NIF: %s ", records.records[i].NIF);
+                fprintf(stderr, "Found duplicate student with NIF: %s ", records->records[i].NIF);
                 perror(NULL);
                 exit(EXIT_FAILURE);
             }
-            if (records.records[i].student_id == records_a.records[i].student_id)
+            if (records->records[i].student_id == records_a.records[i].student_id)
             {
-                fprintf(stderr, "Found duplicate student with id: %d ", records.records[i].student_id);
+                fprintf(stderr, "Found duplicate student with id: %d ", records->records[i].student_id);
                 perror(NULL);
                 exit(EXIT_FAILURE);
             }
         } 
     }
 
-    records.records = realloc(records.records, sizeof(records_t) * (records.records_len + records_a.records_len));
-    
-    for (size_t i = records.records_len; i < records.records_len + records_a.records_len; i++)
-    {
-        records.records[i].student_id = records_a.records[i].student_id;
-        for (size_t i = 0; i < 10; i++)
-        {
-            records.records[i].NIF[i] = records_a.records[i].NIF[i];
-        }
-        records.records[i].first_name = records_a.records[i].first_name;
-        records.records[i].last_name = records_a.records[i].last_name;
-    }
-    records.records_len += records_a.records_len;  
+    records->records = realloc_s(records->records, sizeof(student_t) * (records->records_len + records_a.records_len), sizeof(student_t) * records->records_len);
 
-    //Free the memory used by records_a  
+    cpyStudentArray(records_a.records_len, records_a.records, records->records, records->records_len);
+
+    records->records_len += records_a.records_len;  
+
+    //free_entries(records_a.records, records_a.records_len); 
 }
 
 void queryStudent(options_t options, char* ID)
@@ -271,11 +300,13 @@ void appendStudents(options_t options)
     records_t records_a;
     records_a = read_student_file(stdin, options);
     /*Check for duplicates and merge the two student sets*/
-    recordMerger(records, records_a);
+    recordMerger(&records, records_a);
+    /*Delete contents of file*/
+    options.inFile = freopen(NULL, "w", options.inFile);
     /*Write back to file*/
     dump_entries(records, options.inFile);
     /*Free memory*/
-    free_entries(records_a.records, records_a.records_len);
+    //free_entries(records_a.records, records_a.records_len);
 }
 
 void openFile(char* mode, options_t *options)
