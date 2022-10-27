@@ -27,6 +27,11 @@ typedef enum {
     QUERY_MODE,
 } actions_t;
 
+typedef enum{
+    q_ID,
+    q_NIF
+}querymode_t;
+
 typedef enum {
     STUDENT_ID,
     NIF,
@@ -43,6 +48,7 @@ typedef struct {
 	FILE* inFile;
     char inFilec[MAX_INFILE_LEN];
 	actions_t action;
+    querymode_t qMode;
 }options_t;
 
 #endif
