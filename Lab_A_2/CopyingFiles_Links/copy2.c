@@ -62,8 +62,9 @@ int main(int argc, char* argv[])
     int src = 0;
     int dst = 0;
     lstat(argv[1], &stats);
+
     /*Check if it is Symbolic link*/
-    if ((stats.st_mode & __S_IFMT) != __S_IFLNK)
+    if ((stats.st_mode & __S_IFMT) != __S_IFLNK)//Not a symbolic link
     {
         openFile(&src, argv[1], O_RDONLY);
         openFile(&dst, argv[2], O_TRUNC|O_WRONLY|O_CREAT);
@@ -76,15 +77,18 @@ int main(int argc, char* argv[])
     else
     {
         size_t bytes = stats.st_size + 1;//For the null byte
+        char* path = malloc(bytes);
 
         openFile(&src, argv[1], O_RDONLY);
-        openFile(&dst, argv[2], O_TRUNC|O_WRONLY|O_CREAT);
 
-        readlink();
-        cpyFile(src, dst);
+        readlink(argv[1], path, bytes);
+        path[bytes - 1] = 0;
+
+        symlink(path, argv[2]);
     
         closeFile(src); 
         closeFile(dst);
+        free(path);
 
     }
     
