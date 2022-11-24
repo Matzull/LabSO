@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "defs.h": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "wait.h": "c"
     }
 }
