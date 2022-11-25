@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
         printf("Usage: %s program", argv[0]);
     }
     
-    char* path = argv[1];
+    char* path = argv[1]; 
 
     pid_t pid;
     pid = fork();
