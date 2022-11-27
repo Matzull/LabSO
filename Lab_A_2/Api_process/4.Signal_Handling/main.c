@@ -3,11 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 
 /*In this exercise we are going to experiment with signals between processes. A process create a child, wait for a signal
 from a timer and, upon receiving it, terminate the execution of the child.
 As in exercise 1, the main program will receive as argument the executable that you want the child process to execute.
 The parent process will create a child, which will change its executable with a call to execvp.
+
 The parent will then set the SIGALRM signal handler to be a function that sends a SIGKILL signal to the child process
 and will set an alarm to send the signal after 5 seconds.
 Before terminating, the parent will wait for the child to terminate and will check the cause of the child termination
@@ -17,29 +19,50 @@ To check the correct operation of our program we can use as argument an executab
 (like ls or echo) and one that does not finish until a signal arrives (like xeyes).
 Once the program is running, modify the parent to ignore the SIGINT signal and check that it does so.*/
 
+pid_t pid;
+
+void actHandler(int sigType)
+{
+    kill(pid, SIGKILL);
+}
 
 int main(int argc, char* argv[])
 {
+    
     //argc check
-    if (argc != 2)
+    if (argc < 2)
     {
         printf("Usage: %s program", argv[0]);
     }
     
     char* path = argv[1]; 
 
-    pid_t pid;
     pid = fork();
-    char* args;
 
     if (pid == 0)
     {
         printf("Started process with id: %d\n", getpid());
-        execvp(path, args);
+        execvp(path, &argv[1]);
     }
     if(pid > 0)
     {
-        /* code */
+        struct sigaction sa;
+        sa.sa_handler = actHandler;
+        sa.sa_flags = SA_RESTART;
+        sigaction(SIGALRM, &sa, NULL);
+        //signal(SIGALRM, actHandler);
+        
+        alarm(5);
+        int status;
+        waitpid(pid, &status, WUNTRACED);
+        if (status == 0)
+        {
+            printf("The child process finished normally\n");
+        }
+        else
+        {
+            printf("The child process finished by a signal\n");
+        } 
     }
     else
     {
