@@ -71,7 +71,8 @@ void *client(void *arg)
 		enter_normal_client(id);
 	}
 	dance(id, isvip);
-	disco_exit(id, isvip);	
+	disco_exit(id, isvip);
+	return NULL;
 }
 
 void loadClients(char* path, struct client** clients, int* client_count)
@@ -89,12 +90,12 @@ void loadClients(char* path, struct client** clients, int* client_count)
 	entry_count = atoi(buffer);
 
 	*clients = malloc(sizeof(client) * entry_count);
-
+	char viped;
 	for (size_t i = 0; i < entry_count; i++)
 	{
-		fgets(buffer, 1, fd);//may not overwrite previous bytes
+		fgets(&viped, 2, fd);//may not overwrite previous bytes
 		(*clients)[i].id = i;
-		(*clients)[i].isvip = ((buffer[i] == '1') ? true : false);
+		(*clients)[i].isvip = ((viped == '1') ? true : false);
 	}
 
 	*client_count = entry_count;
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
 
 	if (argc != 2)
 	{
-		fprintf(stderr, "Usage: %s path", argv[0]);
+		fprintf(stderr, "Usage: %s path\n", argv[0]);
 		exit(1);
 	}
 	
@@ -138,6 +139,5 @@ int main(int argc, char *argv[])
 			i = 0;
 		}
 	}
-
 	return 0;
 }
