@@ -107,7 +107,6 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&m_mutex, NULL);
 
 	/*Checking args*/
-
 	if (argc != 2)
 	{
 		fprintf(stderr, "Usage: %s path\n", argv[0]);
@@ -121,7 +120,13 @@ int main(int argc, char *argv[])
 
 	bool mvips;//var indicating if there are more vips to be processed
 	//Lauch threads
-	pthread_t* threads = malloc(sizeof(pthread_t) * client_count);
+
+	// size_t threadsize = sizeof(pthread_t) * client_count;
+	// printf("Thread size:");
+	// printf("Thread size: %lu", threadsize);
+	
+	// pthread_t* threads = malloc(threadsize);
+	pthread_t threads[client_count];
 	
 	for (int i = 0; i < client_count; i++)
 	{
