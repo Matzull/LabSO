@@ -21,8 +21,8 @@ struct client
 
 void enter_normal_client(int id)
 {
-	printf("Normal client with id: %d entering club", id);
 	pthread_mutex_lock(&m_mutex);
+	printf("Normal client with id: %d entering club\n", id);
 	if (currentCap == CAPACITY)
 	{
 		pthread_cond_wait(&Free, &m_mutex);
@@ -33,8 +33,8 @@ void enter_normal_client(int id)
 
 void enter_vip_client(int id)
 {
-	printf("Vip client with id: %d entering club", id);
 	pthread_mutex_lock(&m_mutex);
+	printf("Vip client with id: %d entering club\n", id);
 	if (currentCap == CAPACITY)
 	{
 		pthread_cond_wait(&Free, &m_mutex);
@@ -87,17 +87,20 @@ void loadClients(char* path, struct client** clients, int* client_count)
 	}
 	
 	fgets(buffer, 3, fd);
+	fgetc(fd);
 	entry_count = atoi(buffer);
-
-	*clients = malloc(sizeof(client) * entry_count);
-	char viped;
-	for (size_t i = 0; i < entry_count; i++)
+	*clients = malloc(sizeof(struct client) * entry_count);
+	char viped[3];
+	int i = 0;
+	while (fgets(viped, 3, fd) != NULL)
 	{
-		fgets(&viped, 2, fd);//may not overwrite previous bytes
-		(*clients)[i].id = i;
-		(*clients)[i].isvip = ((viped == '1') ? true : false);
+		if (viped[0] != '\n')
+		{
+			(*clients)[i].id = i;
+			(*clients)[i].isvip = ((viped[0] == '1') ? true : false);
+			i++;
+		}	
 	}
-
 	*client_count = entry_count;
 }
 
@@ -118,19 +121,14 @@ int main(int argc, char *argv[])
 
 	loadClients(argv[1], &clients, &client_count);
 
-	bool mvips;//var indicating if there are more vips to be processed
+	bool mvips = true;//var indicating if there are more vips to be processed
 	//Lauch threads
-
-	// size_t threadsize = sizeof(pthread_t) * client_count;
-	// printf("Thread size:");
-	// printf("Thread size: %lu", threadsize);
 	
-	// pthread_t* threads = malloc(threadsize);
-	pthread_t threads[client_count];
+	pthread_t* threads = malloc(sizeof(pthread_t) * client_count);
 	
 	for (int i = 0; i < client_count; i++)
 	{
-		if (clients[i].isvip == true)
+		if (clients[i].isvip == true && mvips)
 		{
 			pthread_create(&threads[i], NULL, client, &clients[i]);
 		}
@@ -141,8 +139,12 @@ int main(int argc, char *argv[])
 		if (i == client_count - 1 && mvips)
 		{
 			mvips = false;
-			i = 0;
+			i = -1;
 		}
+	}
+	for (int i = 0; i < client_count; i++)
+	{
+		pthread_join(threads[i], NULL);
 	}
 	return 0;
 }
