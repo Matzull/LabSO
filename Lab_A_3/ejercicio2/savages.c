@@ -54,9 +54,24 @@ int main(int argc, char *argv[])
 		perror("Error, couldnt find memory object, please run cook first\n Exiting...");
 		exit(1);
 	}
+	/*Remapping shared memory to process virtual memory*/
+	available_servings = (int*)mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED| MAP_ANON, fd, 0);
+	
+	if (available_servings == MAP_FAILED)
+	{
+		perror("Error, failed mapping memory to virtual memory");
+		exit(1);
+	}
+	
+	
+	printf("Working\n");
+	int num = 5000;
+	memcpy(available_servings, &num, sizeof(int));
+	printf("%d", *available_servings);
+
+
+
 	savages();
-
-
-
+	
 	return 0;
 }
