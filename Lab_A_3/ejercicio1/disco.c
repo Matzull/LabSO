@@ -126,7 +126,8 @@ int main(int argc, char *argv[])
 	
 	pthread_t* threads = malloc(sizeof(pthread_t) * client_count);
 	
-	for (int i = 0; i < client_count; i++)
+	int i = 0;
+	for (i = 0; i < client_count; i++)
 	{
 		if (clients[i].isvip == true && mvips)
 		{
@@ -142,7 +143,8 @@ int main(int argc, char *argv[])
 			i = -1;
 		}
 	}
-	for (int i = 0; i < client_count; i++)
+	int i = 0;
+	for (i = 0; i < client_count; i++)
 	{
 		pthread_join(threads[i], NULL);
 	}
