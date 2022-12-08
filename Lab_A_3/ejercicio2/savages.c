@@ -1,21 +1,12 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
+#include "includes.h"
 
-#include <semaphore.h>
-#include <sys/mman.h>
-#include <pthread.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <string.h>
+#define NUMITER 7
+#define SEMPROC "SEMPROC"
 
-#define NUMITER 10
-#define SEM_NAME "E2SEM"
-#define SMOBJ_NAME "/sMemoryObj"
+sem_t *sem_items;
+sem_t *sem_gaps;
+sem_t *sem_producers;
 
-sem_t *sem_id;
 int* available_servings;
 
 int getServingsFromPot(void)
@@ -36,12 +27,18 @@ void savages(void)
 	int i;
 	for (i = 0; i < NUMITER; i++)
 	{
-		sem_wait(sem_id);
-		if (*available_servings != 0)
+		sem_wait(sem_items);
+		sem_wait(sem_producers);
+		if ((*available_servings) != 0)
 		{
 			getServingsFromPot();
+			sem_post(sem_items);
 		}
-		sem_post(sem_id);
+		else
+		{
+			sem_post(sem_gaps);
+		}
+		sem_post(sem_producers);
 		eat();
 	}
 }
@@ -50,7 +47,9 @@ int main(int argc, char *argv[])
 {
 
 	//semaphore creation
-	sem_id = sem_open(SEM_NAME, O_RDWR, 0600, 0);
+	sem_items = sem_open(SEMITEM, O_RDWR, 0700, 0);
+	sem_gaps = sem_open(SEMGAP, O_RDWR, 0700, M);
+	sem_producers = sem_open(SEMPROC, O_CREAT, 0700, 1);
 
 	int fd = 0;//File descriptor for the shared memory obj
 	if((fd = shm_open(SMOBJ_NAME, O_RDWR, 0666)) == -1)
@@ -72,7 +71,9 @@ int main(int argc, char *argv[])
 	/*Unmapping shared memory*/
 	munmap(available_servings, sizeof(int));
 	close(fd);
-	sem_unlink(SEM_NAME);
+	// sem_unlink(SEMGAP);
+	// sem_unlink(SEMITEM);
+	sem_unlink(SEMPROC);
 	
 	return 0;
 }

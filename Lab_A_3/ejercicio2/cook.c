@@ -1,25 +1,10 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <semaphore.h>
-#include <sys/mman.h>
-#include <pthread.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <stdbool.h>
-
-#define M 10
-#define SEM_NAME "E2SEM"
-#define SMOBJ_NAME "/sMemoryObj"
+#include "includes.h"
 
 
 bool finish = false;
 int* available_servings;
-sem_t *sem_id;
+sem_t *sem_items;
+sem_t *sem_gap;
 
 void putServingsInPot(int servings)
 {
@@ -30,18 +15,24 @@ void putServingsInPot(int servings)
 void cook(void)
 {
 	while(!finish){
-		sem_wait(sem_id);
-		if (*available_servings == 0)
+		sem_wait(sem_gap);
+		if ((*available_servings) == 0)
 		{
 			putServingsInPot(M);
 		}
-		sem_post(sem_id);
+		sem_post(sem_items);
 	}
 }
 
 void handler(int signo)
 {
 	finish = true;
+	/*Unmapping shared memory*/
+	munmap(available_servings, sizeof(int));
+	shm_unlink(SMOBJ_NAME);
+	sem_unlink(SEMITEM);
+	sem_unlink(SEMGAP);
+	exit(0);
 }
 
 int main(int argc, char *argv[])
@@ -53,10 +44,9 @@ int main(int argc, char *argv[])
 	sigaction(SIGTERM, &sa, NULL);
 
 	//semaphore creation
-	sem_id = sem_open(SEM_NAME, O_CREAT, 0700, 1);
-	if (sem_id == SEM_FAILED){
-        perror("Parent  : [sem_open] Failed\n");
-	}
+	sem_items = sem_open(SEMITEM, O_CREAT, 0700, 0);
+	sem_gap = sem_open(SEMGAP, O_CREAT, 0700, 1);
+
 
 	int fd = 0;//File descriptor for the shared memory obj
 	if((fd = shm_open(SMOBJ_NAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1)
@@ -80,11 +70,7 @@ int main(int argc, char *argv[])
 	//cooking...
 	cook();
 
-	/*Unmapping shared memory*/
-	munmap(available_servings, sizeof(int));
-	shm_unlink(SMOBJ_NAME);
 	close(fd);
-	sem_unlink(SEM_NAME);
 	
 	return 0;
 }
