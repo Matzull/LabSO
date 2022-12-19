@@ -3,6 +3,7 @@
         "defs.h": "c",
         "cstdlib": "c",
         "wait.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "kd.h": "c"
     }
 }
